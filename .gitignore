@@ -2,6 +2,10 @@
 .idea/
 node_modules/
 package-lock.json
+
+# local launcher: user config, ViaProxy jar, runtime files (accounts tokens!), logs
+launcher.config.json
+.local/
 code_records/
 scratch.js
 bots/**/action-code/**
@@ -28,3 +32,6 @@ tasks/construction_tasks/train/**
 server_data*
 **/.DS_Store
 src/mindcraft-py/__pycache__/
+
+# user-specific bot profile (contains no secrets, but is personal setup)
+/philbug.json

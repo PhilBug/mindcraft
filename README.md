@@ -87,6 +87,14 @@ ollama pull sweaterdog/andy-4:micro-q8_0 && ollama pull embeddinggemma
 ```
 
 ## Online Servers
+
+> [!Tip]
+> **Local launcher (ViaProxy + Mindcraft):** to connect the bot to servers with unsupported versions
+> (e.g. joining a `26.3` server with a `1.21.6` protocol bot) using one config file and a single
+> command, see [docs/LAUNCHER.pl.md](docs/LAUNCHER.pl.md) (instructions in Polish):
+> `npm run bot:setup`, `npm run bot:start`, `npm run bot:doctor`.
+> Step-by-step setup guide (config, Microsoft login, z.ai GLM model): [docs/QUICKSTART.pl.md](docs/QUICKSTART.pl.md).
+
 To connect to online servers your bot will need an official Microsoft/Minecraft account. You can use your own personal one, but will need another account if you want to connect too and play with it. To connect, change these lines in `settings.js`:
 ```javascript
 "host": "111.222.333.444",

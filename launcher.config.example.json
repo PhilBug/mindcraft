@@ -1,0 +1,26 @@
+{
+    "server": {
+        "host": "mc.example.org",
+        "port": 25565,
+        "version": "26.3"
+    },
+    "account": {
+        "username": "MojNickMinecraft",
+        "auth": "microsoft",
+        "accountIndex": 0
+    },
+    "proxy": {
+        "bindHost": "127.0.0.1",
+        "bindPort": 25568,
+        "javaPath": "java",
+        "jarPath": "./.local/viaproxy/ViaProxy.jar",
+        "startupTimeoutMs": 60000,
+        "download": {
+            "pinVersion": "v3.4.14"
+        }
+    },
+    "mindcraft": {
+        "clientVersion": "1.21.6",
+        "profilePath": "./andy.json"
+    }
+}

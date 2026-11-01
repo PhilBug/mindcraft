@@ -28,4 +28,13 @@ export default [
       "no-floating-promise/no-floating-promise": "error", // Disallow Promises without error handling or awaiting
     },
   },
+  {
+    // Node-side code: local launcher and its tests.
+    files: ["launcher/**/*.js", "test/**/*.mjs"],
+    languageOptions: {
+      globals: { ...globals.node },
+      ecmaVersion: 2022,
+      sourceType: "module",
+    },
+  },
 ];
