@@ -80,20 +80,26 @@ class MindServerProxy {
             }
         });
 
-        this.socket.on('take-screenshot', async (callback) => {
-            try {
-                const vi = this.agent && this.agent.vision_interpreter;
-                if (!vi || !vi.camera) {
-                    callback({ error: 'Camera not available (allow_vision disabled?).' });
-                    return;
+        // Serialize camera captures: overlapping captures corrupt the shared
+        // THREE.js renderer state and can crash the agent process.
+        this._captureQueue = Promise.resolve();
+
+        this.socket.on('take-screenshot', (callback) => {
+            this._captureQueue = this._captureQueue.then(async () => {
+                try {
+                    const vi = this.agent && this.agent.vision_interpreter;
+                    if (!vi || !vi.camera) {
+                        return { error: 'Camera not available (allow_vision disabled?).' };
+                    }
+                    const filename = await vi.camera.capture();
+                    const buf = await fs.promises.readFile(`${vi.fp}/${filename}.jpg`);
+                    return { image: buf.toString('base64') };
+                } catch (error) {
+                    console.error('Error taking screenshot:', error);
+                    return { error: String(error && error.message ? error.message : error) };
                 }
-                const filename = await vi.camera.capture();
-                const buf = await fs.promises.readFile(`${vi.fp}/${filename}.jpg`);
-                callback({ image: buf.toString('base64') });
-            } catch (error) {
-                console.error('Error taking screenshot:', error);
-                callback({ error: String(error && error.message ? error.message : error) });
-            }
+            });
+            this._captureQueue.then(res => callback(res));
         });
 
         // Request settings and wait for response
