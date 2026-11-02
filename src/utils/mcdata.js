@@ -84,6 +84,8 @@ export function initBot(username) {
                         pendingPositionPacket = null;
                         lastPositionUpdate = Date.now();
                         originalWrite(name, data);
+                        // the deferred write still needs its tick_end (see below)
+                        try { originalWrite('tick_end', {}); } catch (err) { /* pre-1.21.2 */ }
                     }, POSITION_THROTTLE_MS - (now - lastPositionUpdate));
                 }
                 return;
@@ -94,7 +96,17 @@ export function initBot(username) {
                 pendingPositionPacket = null;
             }
         }
-        return originalWrite(name, data);
+        const result = originalWrite(name, data);
+        // MC 26.3+ servers kick with invalid_player_movement when more than one
+        // position-bearing packet arrives in a client tick; the counter only resets
+        // on serverbound client_tick_end. mineflayer <= 4.39.0 never sends it
+        // (fixed on master by PrismarineJS/mineflayer#4137, unreleased).
+        // Works on 1.21.2+ protocols; on older ones the write throws and is ignored.
+        // Remove this once mineflayer releases a version including #4137.
+        if (name === 'position' || name === 'position_look' || name === 'look' || name === 'flying') {
+            try { originalWrite('tick_end', {}); } catch (err) { /* pre-1.21.2 protocol */ }
+        }
+        return result;
     };
 
     // Suppress PartialReadError for non-critical packets
