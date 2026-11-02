@@ -24,7 +24,7 @@ export class DeepSeek {
         const pack = {
             model: this.model_name || "deepseek-chat",
             messages,
-            stop: stop_seq,
+            stop: [stop_seq], // array: z.ai (i inne backendy Java) nie przyjmują stop jako stringa
             ...(this.params || {})
         };
 
