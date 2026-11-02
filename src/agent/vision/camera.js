@@ -35,6 +35,16 @@ export class Camera extends EventEmitter {
         // Load world
         const worldView = new WorldView(this.bot.world, this.viewDistance, center);
         this.viewer.listen(worldView);
+        // prismarine-viewer's entity mesh list lags new Minecraft versions; an
+        // unknown entity type (new mob in 26.3) throws deep inside its mesh
+        // builder from within an event handler, crashing the whole agent.
+        // Skip such entities instead.
+        const origUpdateEntity = this.viewer.updateEntity.bind(this.viewer);
+        this.viewer.updateEntity = (e) => {
+            try { return origUpdateEntity(e); }
+            catch (err) { console.warn('[camera] skipping entity mesh:', err.message); }
+        };
+        this.viewer.listen(worldView);
         worldView.listenToBot(this.bot);
         await worldView.init(center);
         this.worldView = worldView;
