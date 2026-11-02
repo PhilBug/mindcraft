@@ -138,12 +138,14 @@ Profil `philbug.json` (Twój lokalny plik, gitignored):
 - Modele wg dokumentacji z.ai: `glm-5.3` (tekstowy) i `glm-5.3-flash` (multimodalny);
   dostępna lista zależy od Twojego planu — sprawdź w konsoli Z.AI i wpisz dokładnie taką nazwę
   w `model.model`.
-- **`clientVersion`:** najlepiej ustawić **dokładnie wersję serwera** (np. `26.3`), jeśli
-  mineflayer/minecraft-data wspiera ją natywnie — wtedy ViaProxy nie tłumaczy protokołu
-  (mniej ryzyka kicków typu `invalid_player_movement`). Sprawdź wsparcie:
+- **`clientVersion`:** ustawiaj wersję z oficjalnej listy wspieranych przez Mindcraft
+  (najwyższa obecnie: `26.1` — pełna lista w logu bota). Nowsze wersje niż z listy
+  też zwykle działają (bot łączy się z ostrzeżeniem „version is unsupported”), bo
+  `minecraft-data` już zna ich protokoły. Sprawdź wsparcie:
   `node -e "console.log(require('minecraft-data').versionsByMinecraftVersion.pc['26.3'])"`.
-  Starszą wersję (np. `1.21.6`) ustawiaj tylko, gdy serwer wymaga tłumaczenia z wersji,
-  której mineflayer nie zna.
+  ViaProxy i tak tłumaczy protokół do wersji serwera, więc nizsza wersja bota =
+  większy skok tłumaczenia. Wersja protokołu nie była przyczyną kicka
+  `invalid_player_movement` — ten sam kick wystąpił przy ścieżce 1.21.6→26.3 i 26.3→26.3.
 - Jeśli wolisz inny model/provider (np. OpenAI), po prostu wróć do `"profilePath": "./andy.json"`
   w `launcher.config.json` i ustaw `OPENAI_API_KEY` w `keys.json`.
 
