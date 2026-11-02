@@ -118,12 +118,17 @@ Profil `philbug.json` (Twój lokalny plik, gitignored):
 ```json
 {
     "name": "philbug",
-    "model": "glm-5.3",
-    "api": "deepseek",
-    "url": "https://api.z.ai/api/coding/paas/v4"
+    "model": {
+        "api": "deepseek",
+        "url": "https://api.z.ai/api/coding/paas/v4",
+        "model": "glm-5.3-flash"
+    }
 }
 ```
 
+- **Ważne:** `api` i `url` muszą być **wewnątrz obiektu `model`** (tak jak w `profiles/azure.json`).
+  Prompter Mindcrafta przekazuje do selectAPI wyłącznie `profile.model` — płaskie pola `api`/`url`
+  obok `"model": "..."` byłyby zignorowane (na tym poległ pierwszy start bota).
 - `"api": "deepseek"` wybiera klasę OpenAI-compatible w Mindcraft (`src/models/deepseek.js`),
   `"url"` przekierowuje ją na endpoint z.ai, klucz bierze z `keys.json` (`DEEPSEEK_API_KEY`).
 - Endpoint **musi** być `https://api.z.ai/api/coding/paas/v4` (Coding Plan), **nie**
@@ -131,7 +136,8 @@ Profil `philbug.json` (Twój lokalny plik, gitignored):
 - Klucz Coding Plan tworzysz w konsoli Z.AI: **Personal Coding Plan → Plan Overview**
   (klucze Coding Plan i standardowe API są od 2026-10-16 osobne i nie są wymienne).
 - Modele wg dokumentacji z.ai: `glm-5.3` (tekstowy) i `glm-5.3-flash` (multimodalny);
-  dostępna lista zależy od Twojego planu — sprawdź w konsoli Z.AI i wpisz dokładnie taką nazwę.
+  dostępna lista zależy od Twojego planu — sprawdź w konsoli Z.AI i wpisz dokładnie taką nazwę
+  w `model.model`.
 - Jeśli wolisz inny model/provider (np. OpenAI), po prostu wróć do `"profilePath": "./andy.json"`
   w `launcher.config.json` i ustaw `OPENAI_API_KEY` w `keys.json`.
 

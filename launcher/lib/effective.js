@@ -40,8 +40,11 @@ export function checkProfileStructure(profileObj) {
     if (typeof profileObj.name !== 'string' || profileObj.name.trim() === '') {
         errors.push('The profile does not contain a "name" field (bot name).');
     }
-    if (profileObj.model !== undefined && (typeof profileObj.model !== 'string' || profileObj.model.trim() === '')) {
-        errors.push('The "model" field in the profile must be a non-empty string.');
+    if (profileObj.model !== undefined) {
+        // Mindcraft accepts either a model name string or an object {api, url, model, params}.
+        const isName = typeof profileObj.model === 'string' && profileObj.model.trim() !== '';
+        const isObj = profileObj.model && typeof profileObj.model === 'object' && !Array.isArray(profileObj.model);
+        if (!isName && !isObj) errors.push('The "model" field in the profile must be a non-empty string or an object (e.g. {"api": "deepseek", "url": "...", "model": "..."}).');
     }
     return { errors };
 }
