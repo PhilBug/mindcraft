@@ -143,9 +143,16 @@ Profil `philbug.json` (Twój lokalny plik, gitignored):
   też zwykle działają (bot łączy się z ostrzeżeniem „version is unsupported”), bo
   `minecraft-data` już zna ich protokoły. Sprawdź wsparcie:
   `node -e "console.log(require('minecraft-data').versionsByMinecraftVersion.pc['26.3'])"`.
-  ViaProxy i tak tłumaczy protokół do wersji serwera, więc nizsza wersja bota =
-  większy skok tłumaczenia. Wersja protokołu nie była przyczyną kicka
-  `invalid_player_movement` — ten sam kick wystąpił przy ścieżce 1.21.6→26.3 i 26.3→26.3.
+  ViaProxy i tak tłumaczy protokół do wersji serwera, więc niższa wersja bota =
+  większy skok tłumaczenia.
+- **Kick `invalid_player_movement` na serwerach 26.3 — ROZWIĄZANY.** Prawdziwa przyczyna:
+  serwery 26.3 kickują przy drugim pakiecie pozycji w obrębie jednego ticku klienta, a
+  licznik resetuje dopiero pakiet `client_tick_end` — mineflayer 4.39.0 nie wysyła go
+  wcale (naprawa upstream: mineflayer#4137, jeszcze niewydana; opis: mineflayer#4189).
+  Dlatego ten sam kick wystąpił przy ścieżkach 1.21.6→26.3, 26.3→26.3 i 26.1→26.3 —
+  i dlatego na serwerze 26.1 bot przeżywał. Obowiązuje łatka w `src/utils/mcdata.js`
+  (dokleja `tick_end` po każdym pakiecie ruchu); do usunięcia po wydaniu mineflayera
+  z naprawą #4137. Bot potwierdzony na żywo na serwerze 26.3 (online-mode, przez ViaProxy).
 - Jeśli wolisz inny model/provider (np. OpenAI), po prostu wróć do `"profilePath": "./andy.json"`
   w `launcher.config.json` i ustaw `OPENAI_API_KEY` w `keys.json`.
 
