@@ -267,6 +267,17 @@ export function createMindServer(host_public = false, port = 8080) {
 			}
 		});
 
+        socket.on('take-screenshot', (agentName) => {
+            const agent = agent_connections[agentName];
+            if (!agent || !agent.in_game) {
+                socket.emit('screenshot-data', agentName, { error: 'Agent is not in game.' });
+                return;
+            }
+            agent.socket.timeout(20000).emit('take-screenshot', (err, res) => {
+                socket.emit('screenshot-data', agentName, err ? { error: 'Agent timeout' } : (res || { error: 'No response from agent' }));
+            });
+        });
+
         socket.on('bot-output', (agentName, message) => {
             io.emit('bot-output', agentName, message);
         });

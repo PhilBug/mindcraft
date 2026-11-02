@@ -92,6 +92,7 @@ export function validateConfig(raw) {
         if (typeof mindcraft.clientVersion !== 'string' || mindcraft.clientVersion.trim() === '') errors.push('mindcraft.clientVersion must be a non-empty string, e.g. "1.21.6" (the protocol version the bot uses to connect to ViaProxy).');
         if (typeof mindcraft.profilePath !== 'string' || mindcraft.profilePath.trim() === '') errors.push('mindcraft.profilePath must be a non-empty string (path to the bot profile JSON).');
         if (mindcraft.model !== undefined && (typeof mindcraft.model !== 'string' || mindcraft.model.trim() === '')) errors.push('mindcraft.model must be a non-empty string or be omitted (the model from the profile is used then).');
+        if (mindcraft.allowVision !== undefined && typeof mindcraft.allowVision !== 'boolean') errors.push('mindcraft.allowVision must be a boolean or be omitted (default false).');
     }
 
     // --- cross-field checks (only when shapes are valid enough) ---
@@ -131,6 +132,7 @@ export function validateConfig(raw) {
             clientVersion: mindcraft.clientVersion.trim(),
             profilePath: mindcraft.profilePath,
             model: mindcraft.model,
+            allowVision: mindcraft.allowVision ?? false,
         },
     };
 

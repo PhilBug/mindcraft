@@ -13,6 +13,9 @@ export function buildEffectiveSettings(config) {
         port: config.proxy.bindPort,
         minecraft_version: config.mindcraft.clientVersion,
         auth: 'offline',
+        // enables the agent's prismarine-viewer camera (screenshots in
+        // bots/<name>/screenshots/ and !lookAtPlayer/!lookAtPosition commands)
+        allow_vision: config.mindcraft.allowVision,
     };
 }
 

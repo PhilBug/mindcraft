@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import fs from 'fs';
 import convoManager from './conversation.js';
 import { setSettings } from './settings.js';
 import { getFullState } from './library/full_state.js';
@@ -76,6 +77,22 @@ class MindServerProxy {
             } catch (error) {
                 console.error('Error getting full state:', error);
                 callback(null);
+            }
+        });
+
+        this.socket.on('take-screenshot', async (callback) => {
+            try {
+                const vi = this.agent && this.agent.vision_interpreter;
+                if (!vi || !vi.camera) {
+                    callback({ error: 'Camera not available (allow_vision disabled?).' });
+                    return;
+                }
+                const filename = await vi.camera.capture();
+                const buf = await fs.promises.readFile(`${vi.fp}/${filename}.jpg`);
+                callback({ image: buf.toString('base64') });
+            } catch (error) {
+                console.error('Error taking screenshot:', error);
+                callback({ error: String(error && error.message ? error.message : error) });
             }
         });
 

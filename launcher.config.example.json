@@ -21,6 +21,7 @@
     },
     "mindcraft": {
         "clientVersion": "1.21.6",
-        "profilePath": "./andy.json"
+        "profilePath": "./andy.json",
+        "allowVision": false
     }
 }

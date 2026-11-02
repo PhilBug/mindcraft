@@ -652,6 +652,21 @@
         }
         document.getElementById('closeCreateAgentBtn').addEventListener('click', hideCreateAgentModal);
 
+        socket.on('screenshot-data', (agentName, res) => {
+            const img = document.getElementById(`shot-${agentName}`);
+            const btn = document.getElementById(`shotBtn-${agentName}`);
+            if (btn) btn.disabled = false;
+            if (!img) return;
+            if (!res || res.error) {
+                img.style.display = 'block';
+                img.removeAttribute('src');
+                img.alt = 'Screenshot error: ' + (res && res.error ? res.error : 'unknown');
+                return;
+            }
+            img.src = 'data:image/jpeg;base64,' + res.image;
+            img.style.display = 'block';
+            img.alt = 'bot view';
+        });
         socket.on('bot-output', (agentName, message) => {
             agentLastMessage[agentName] = message;
             const messageDiv = document.getElementById(`lastMessage-${agentName}`);
@@ -927,6 +942,11 @@
                                 <div class="inventory-grid" id="inventory-${agent.name}"></div>
                             </div>
                             <div id="lastMessage-${agent.name}" class="last-message" style="grid-column: 1 / -1;"><strong>Last Message:</strong> ${lastMessage}</div>
+                            <div style="grid-column: 1 / -1; display:flex; align-items:center; gap:10px; margin-top:4px;">
+                                <button class="neutral-btn" id="shotBtn-${agent.name}" onclick="takeScreenshot('${agent.name}')" ${!agent.in_game ? 'disabled' : ''}>📸 Screenshot</button>
+                                <label style="font-size:12px; display:flex; align-items:center; gap:4px; color:#ccc;"><input type="checkbox" id="autoShot-${agent.name}" onchange="onAutoShotChange('${agent.name}')"> live (5s)</label>
+                            </div>
+                            <img id="shot-${agent.name}" style="grid-column: 1 / -1; display:none; max-width:100%; width:800px; border-radius:6px; background:#222;" alt="bot view">
                         </div>
                         <div class="controls-row">
                             <button class="start-btn" id="sendBtn-${agent.name}" disabled onclick="sendMessage('${agent.name}', document.getElementById('messageInput-${agent.name}').value)">Send</button>
@@ -1079,6 +1099,17 @@
             if (confirm('Are you sure you want to perform a full shutdown?\nThis will stop all agents and close the server.')) {
                 socket.emit('shutdown');
             }
+        }
+        const shotTimers = {};
+        function takeScreenshot(n) {
+            const btn = document.getElementById(`shotBtn-${n}`);
+            if (btn) btn.disabled = true;
+            socket.emit('take-screenshot', n);
+        }
+        function onAutoShotChange(n) {
+            const box = document.getElementById(`autoShot-${n}`);
+            if (shotTimers[n]) { clearInterval(shotTimers[n]); delete shotTimers[n]; }
+            if (box && box.checked) shotTimers[n] = setInterval(() => takeScreenshot(n), 5000);
         }
         function sendMessage(n, m) {
             if (!m || !m.trim()) return;
