@@ -138,6 +138,12 @@ Profil `philbug.json` (Twój lokalny plik, gitignored):
 - Modele wg dokumentacji z.ai: `glm-5.3` (tekstowy) i `glm-5.3-flash` (multimodalny);
   dostępna lista zależy od Twojego planu — sprawdź w konsoli Z.AI i wpisz dokładnie taką nazwę
   w `model.model`.
+- **`clientVersion`:** najlepiej ustawić **dokładnie wersję serwera** (np. `26.3`), jeśli
+  mineflayer/minecraft-data wspiera ją natywnie — wtedy ViaProxy nie tłumaczy protokołu
+  (mniej ryzyka kicków typu `invalid_player_movement`). Sprawdź wsparcie:
+  `node -e "console.log(require('minecraft-data').versionsByMinecraftVersion.pc['26.3'])"`.
+  Starszą wersję (np. `1.21.6`) ustawiaj tylko, gdy serwer wymaga tłumaczenia z wersji,
+  której mineflayer nie zna.
 - Jeśli wolisz inny model/provider (np. OpenAI), po prostu wróć do `"profilePath": "./andy.json"`
   w `launcher.config.json` i ustaw `OPENAI_API_KEY` w `keys.json`.
 
