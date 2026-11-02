@@ -165,6 +165,22 @@ export function initBot(username) {
                     console.log(`[mcdata] prismarine-viewer: ${sub}/${mc_version}${ext} missing, using 1.21.4 assets as fallback`);
                 }
             }
+            // The viewer's browser bundle embeds its own copy of the
+            // supported-version list; patch it too, or the browser side
+            // rejects the version (window.alert) and renders nothing.
+            const bundlePath = path.join(publicDir, 'index.js');
+            if (fs.existsSync(bundlePath)) {
+                const bundle = fs.readFileSync(bundlePath, 'utf8');
+                if (!bundle.includes(`"${mc_version}"`)) {
+                    const patched = bundle.replace('"1.21.4"]', `"1.21.4","${mc_version}"]`);
+                    if (patched !== bundle) {
+                        fs.writeFileSync(bundlePath, patched);
+                        console.log('[mcdata] prismarine-viewer: patched browser bundle for version', mc_version);
+                    } else {
+                        console.warn('[mcdata] prismarine-viewer: could not patch browser bundle for version', mc_version);
+                    }
+                }
+            }
             console.log('[mcdata] prismarine-viewer: added runtime support for version', mc_version);
         }
     });

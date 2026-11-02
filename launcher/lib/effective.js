@@ -16,6 +16,9 @@ export function buildEffectiveSettings(config) {
         // enables the agent's prismarine-viewer camera (screenshots in
         // bots/<name>/screenshots/ and !lookAtPlayer/!lookAtPosition commands)
         allow_vision: config.mindcraft.allowVision,
+        // built-in live 3D view served at localhost:3000+agentIndex,
+        // embedded in the web UI when the agent settings expose it
+        render_bot_view: config.mindcraft.renderBotView,
     };
 }
 

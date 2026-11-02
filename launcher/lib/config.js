@@ -93,6 +93,7 @@ export function validateConfig(raw) {
         if (typeof mindcraft.profilePath !== 'string' || mindcraft.profilePath.trim() === '') errors.push('mindcraft.profilePath must be a non-empty string (path to the bot profile JSON).');
         if (mindcraft.model !== undefined && (typeof mindcraft.model !== 'string' || mindcraft.model.trim() === '')) errors.push('mindcraft.model must be a non-empty string or be omitted (the model from the profile is used then).');
         if (mindcraft.allowVision !== undefined && typeof mindcraft.allowVision !== 'boolean') errors.push('mindcraft.allowVision must be a boolean or be omitted (default false).');
+        if (mindcraft.renderBotView !== undefined && typeof mindcraft.renderBotView !== 'boolean') errors.push('mindcraft.renderBotView must be a boolean or be omitted (default false).');
     }
 
     // --- cross-field checks (only when shapes are valid enough) ---
@@ -133,6 +134,7 @@ export function validateConfig(raw) {
             profilePath: mindcraft.profilePath,
             model: mindcraft.model,
             allowVision: mindcraft.allowVision ?? false,
+            renderBotView: mindcraft.renderBotView ?? false,
         },
     };
 
