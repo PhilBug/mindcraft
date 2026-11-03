@@ -35,3 +35,6 @@ src/mindcraft-py/__pycache__/
 
 # user-specific bot profile (contains no secrets, but is personal setup)
 /philbug.json
+
+# stray local runtime log at repo root
+/console.log
