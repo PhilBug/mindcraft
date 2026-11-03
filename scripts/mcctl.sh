@@ -1,25 +1,28 @@
 #!/usr/bin/env bash
-# mcctl.sh - start/stop/restart the ViaProxy + Mindcraft bot stack.
+# mcctl.sh - start/stop/restart the local test server + ViaProxy/Mindcraft stack.
 #
-# The "all" target runs the official launcher (launcher/bin/start.js), which
-# manages both processes, env and secrets. The "proxy" and "bot" targets run
-# the components standalone, reusing launcher libraries through
+# The "server" target manages the local Paper test server (.local/testserver):
+# it starts from server.properties, so a deleted world is regenerated fresh
+# (currently: peaceful, spawn-monsters=false). The "all" target starts the
+# server first, then the official launcher (launcher/bin/start.js), which
+# manages ViaProxy + Mindcraft, env and secrets. The "proxy" and "bot" targets
+# run the components standalone, reusing launcher libraries through
 # scripts/mc-env.mjs, so launcher.config.json stays the single source of truth.
 #
 # Usage:
-#   scripts/mcctl.sh start   [all|proxy|bot] [options]
-#   scripts/mcctl.sh stop    [all|proxy|bot]
-#   scripts/mcctl.sh restart [all|proxy|bot] [options]
+#   scripts/mcctl.sh start   [all|server|proxy|bot] [options]
+#   scripts/mcctl.sh stop    [all|server|proxy|bot]
+#   scripts/mcctl.sh restart [all|server|proxy|bot] [options]
 #   scripts/mcctl.sh status
 #   scripts/mcctl.sh send    <message>
-#   scripts/mcctl.sh logs    [launcher|proxy|bot] [-f]
+#   scripts/mcctl.sh logs    [launcher|server|proxy|bot] [-f]
 #
 # Options:
 #   -f, --foreground   start in the foreground instead of detaching
 #                      (for "logs" this means: follow the log, like tail -f)
 #   -t, --timeout N    seconds to wait for startup ports (default: 60)
 #   -q, --quiet        only print errors
-#       --log FILE     override the log file for "start" / "logs launcher"
+#       --log FILE     override the log file for "start" / "logs"
 #   -h, --help         show this help
 #
 # Notes:
@@ -28,6 +31,7 @@
 #   - "stop bot" stops the whole Mindcraft process (UI included). The agent
 #     inside a running launcher restarts automatically after crashes; use
 #     the web UI Restart button for agent-level restarts.
+#   - "stop server" sends SIGTERM - Paper saves the world before exiting.
 
 set -u
 
@@ -39,6 +43,10 @@ PROXY_LOG="$ROOT/.local/runtime/logs/viaproxy.log"
 BOT_LOG="$ROOT/.local/runtime/logs/mindcraft.log"
 CONFIG_FILE="$ROOT/launcher.config.json"
 UI_PORT=8080 # Mindcraft default MindServer/UI port
+
+# Local Paper test server managed by the "server" target (env-overridable).
+TESTSERVER_DIR="${MC_TESTSERVER_DIR:-$ROOT/.local/testserver}"
+TESTSERVER_PORT="$(jq -r '.server.port // 25565' "$CONFIG_FILE" 2>/dev/null || printf '25565')"
 
 CMD=""
 TARGET="all"
@@ -82,7 +90,7 @@ TARGET="${ARGS[1]:-all}"
 
 case "$CMD" in
     start|stop|restart)
-        case "$TARGET" in all|proxy|bot) ;; *) die "unknown target '$TARGET' (all|proxy|bot)" ;; esac
+        case "$TARGET" in all|server|proxy|bot) ;; *) die "unknown target '$TARGET' (all|server|proxy|bot)" ;; esac
         [ ${#ARGS[@]} -eq 2 ] || die "${CMD} takes at most one target"
         ;;
     status)
@@ -92,7 +100,7 @@ case "$CMD" in
         [ ${#ARGS[@]} -ge 2 ] || die "send needs a message, e.g. mcctl.sh send 'hello'"
         ;;
     logs)
-        case "$TARGET" in all|launcher|proxy|bot) ;; *) die "unknown target '$TARGET' (launcher|proxy|bot)" ;; esac
+        case "$TARGET" in all|launcher|server|proxy|bot) ;; *) die "unknown target '$TARGET' (launcher|server|proxy|bot)" ;; esac
         [ ${#ARGS[@]} -le 2 ] || die "logs takes at most one target"
         ;;
     *) die "unknown command '$CMD' (see --help)" ;;
@@ -155,6 +163,7 @@ component_pid() { # component_pid <target> - pidfile first, then discovery
     fi
     case "$1" in
         launcher) pid="$(find_pid 'node launcher/bin/start[.]js')" ;;
+        server)   pid="$(find_pid '(paper|server)[.]jar nogui')" ;;
         proxy)    pid="$(find_pid 'ViaProxy[.]jar')" ;;
         bot)      pid="$(find_pid 'main[.]js --profiles')" ;;
     esac
@@ -252,6 +261,53 @@ start_bot() {
     log "mcctl: bot is up (pid $pid); UI: http://localhost:$UI_PORT"
 }
 
+# --- test server helpers --------------------------------------------------
+find_server_jar() { # find_server_jar <dir> - prefer paper.jar over server.jar
+    local jar
+    for jar in paper.jar server.jar; do
+        [ -f "$1/$jar" ] && { printf '%s' "$jar"; return 0; }
+    done
+    return 1
+}
+
+find_server_java() { # newest java available (Paper needs way more than 21)
+    [ -n "${MC_TESTSERVER_JAVA:-}" ] && { printf '%s' "$MC_TESTSERVER_JAVA"; return; }
+    local best="" best_v=0 j v
+    for j in /usr/lib/jvm/*/bin/java java; do
+        command -v "$j" >/dev/null 2>&1 || continue
+        v="$($j -version 2>&1 | awk 'match($0, /version "?([0-9]+)/, m) { print m[1]; exit }')"
+        case "$v" in (*[!0-9]*|'') continue ;; esac
+        [ "$v" -gt "$best_v" ] && { best="$j"; best_v="$v"; }
+    done
+    printf '%s' "${best:-java}"
+}
+
+start_server() {
+    local jar java logfile pid
+    is_running "$(read_pid server 2>/dev/null || true)" && die "server already running (pid $(read_pid server))"
+    [ -d "$TESTSERVER_DIR" ] || die "no test server directory: $TESTSERVER_DIR"
+    jar="$(find_server_jar "$TESTSERVER_DIR")" || die "no paper.jar/server.jar in $TESTSERVER_DIR"
+    java="$(find_server_java)"
+    logfile="$TESTSERVER_DIR/console.log"
+    port_open "$TESTSERVER_PORT" && die "port $TESTSERVER_PORT already in use - is a server already running?"
+    log "mcctl: starting test server ($jar, java: $java); log: $logfile"
+    ( cd "$TESTSERVER_DIR" && exec setsid "$java" -Xms1G -Xmx2G -jar "$jar" nogui >"$logfile" 2>&1 ) &
+    pid=$!
+    wait_port "$TESTSERVER_PORT" "$TIMEOUT" || die "test server did not open port $TESTSERVER_PORT within ${TIMEOUT}s - see $logfile"
+    is_running "$pid" || pid="$(find_pid '(paper|server)[.]jar nogui')"
+    echo "$pid" >"$(pidfile_for server)"
+    log "mcctl: test server is up (pid $pid), port $TESTSERVER_PORT"
+}
+
+start_all() {
+    if is_running "$(component_pid server 2>/dev/null || true)"; then
+        log "mcctl: test server already running - keeping it"
+    else
+        start_server
+    fi
+    start_launcher
+}
+
 # --- stop -----------------------------------------------------------------
 stop_component() { # stop_component <target> <signal>
     local pid
@@ -268,6 +324,7 @@ stop_all() {
     stop_component launcher -INT  # launcher shuts ViaProxy + Mindcraft down
     stop_component proxy -TERM
     stop_component bot -TERM
+    stop_component server -TERM   # graceful: Paper saves the world on SIGTERM
 }
 
 # --- misc -----------------------------------------------------------------
@@ -275,7 +332,7 @@ show_status() {
     local pid state extra ram launcher_pid
     launcher_pid="$(component_pid launcher 2>/dev/null || true)"
     printf '%-9s %-8s %-7s %-9s %s\n' 'TARGET' 'STATE' 'PID' 'RAM' 'EXTRA'
-    for TARGET in launcher proxy bot; do
+    for TARGET in launcher server proxy bot; do
         pid="$(component_pid "$TARGET" 2>/dev/null || true)"
         ram='-'; extra=''
         if is_running "$pid"; then
@@ -290,6 +347,7 @@ show_status() {
         fi
         case "$TARGET" in
             launcher) extra="UI :8080 $(port_open "$UI_PORT" && printf %s up || printf %s down)${extra:+ $extra}" ;;
+            server)   extra="port: $TESTSERVER_PORT $(port_open "$TESTSERVER_PORT" && printf %s up || printf %s down)${extra:+ $extra}" ;;
             proxy)    extra="bind port: $(jq -r '.proxy.bindPort // 25568' "$CONFIG_FILE" 2>/dev/null || printf '?')${extra:+ $extra}" ;;
             bot)      [ -n "$extra" ] || extra="log: $BOT_LOG" ;;
         esac
@@ -308,6 +366,10 @@ show_logs() {
     local file follow=()
     case "$TARGET" in
         launcher) file="${LOG_FILE:-$DEFAULT_LAUNCHER_LOG}" ;;
+        server)
+            file="${LOG_FILE:-$TESTSERVER_DIR/logs/latest.log}"
+            [ -f "$file" ] || file="$TESTSERVER_DIR/console.log"
+            ;;
         proxy)    file="$PROXY_LOG" ;;
         *)        file="$BOT_LOG" ;;
     esac
@@ -320,7 +382,8 @@ show_logs() {
 case "$CMD" in
     start)
         case "$TARGET" in
-            all)   start_launcher ;;
+            all)   start_all ;;
+            server) start_server ;;
             proxy) start_proxy ;;
             bot)   start_bot ;;
         esac
@@ -329,7 +392,9 @@ case "$CMD" in
         if [ "$TARGET" = "all" ]; then
             stop_all
         else
-            stop_component "$TARGET" -INT
+            signal=-INT
+            [ "$TARGET" = "server" ] && signal=-TERM # Paper saves the world on SIGTERM
+            stop_component "$TARGET" "$signal"
             [ "$TARGET" = "proxy" ] && is_running "$(read_pid launcher 2>/dev/null || true)" && \
                 log "mcctl: note - the running launcher treats a proxy exit as fatal and will shut Mindcraft down"
         fi
