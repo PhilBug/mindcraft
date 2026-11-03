@@ -116,6 +116,52 @@ find_pid() { # find_pid <egrep-pattern> - first matching pid, for pid recovery
     pgrep -f "$1" 2>/dev/null | head -n 1
 }
 
+tree_pids() { # tree_pids <pid> - the pid and all descendants, one per line
+    local child kids
+    printf '%s\n' "$1"
+    kids="$(pgrep -P "$1" 2>/dev/null || true)"
+    while IFS= read -r child; do
+        [ -n "$child" ] && tree_pids "$child"
+    done <<< "$kids"
+}
+
+ram_of_tree() { # ram_of_tree <pid> - total RSS (human readable) of a process tree
+    local pids
+    pids="$(tree_pids "$1" | sort -un | paste -sd, -)"
+    ps -o rss= -p "$pids" 2>/dev/null | awk '
+        { s += $1 }
+        END {
+            s += 0
+            if (s >= 1048576)      printf "%.1f GiB", s / 1048576
+            else if (s >= 1024)    printf "%.0f MiB", s / 1024
+            else                   printf "%d KiB", s
+        }'
+}
+
+is_descendant() { # is_descendant <candidate_pid> <ancestor_pid>
+    local cur="$1"
+    while [ -n "$cur" ] && [ "$cur" != "1" ] && [ "$cur" != "$2" ]; do
+        cur="$(ps -o ppid= -p "$cur" 2>/dev/null | tr -d ' ')"
+    done
+    [ "$cur" = "$2" ]
+}
+
+component_pid() { # component_pid <target> - pidfile first, then discovery
+    local pid
+    pid="$(read_pid "$1" 2>/dev/null || true)"
+    if is_running "$pid"; then
+        printf '%s' "$pid"
+        return 0
+    fi
+    case "$1" in
+        launcher) pid="$(find_pid 'node launcher/bin/start[.]js')" ;;
+        proxy)    pid="$(find_pid 'ViaProxy[.]jar')" ;;
+        bot)      pid="$(find_pid 'main[.]js --profiles')" ;;
+    esac
+    is_running "$pid" || return 1
+    printf '%s' "$pid"
+}
+
 is_running() { [ -n "${1:-}" ] && kill -0 "$1" 2>/dev/null; }
 
 port_open() { # port_open <port> - tries IPv4, IPv6 and the localhost name
@@ -226,22 +272,28 @@ stop_all() {
 
 # --- misc -----------------------------------------------------------------
 show_status() {
-    local pid state extra
-    printf '%-9s %-8s %-7s %s\n' 'TARGET' 'STATE' 'PID' 'EXTRA'
+    local pid state extra ram launcher_pid
+    launcher_pid="$(component_pid launcher 2>/dev/null || true)"
+    printf '%-9s %-8s %-7s %-9s %s\n' 'TARGET' 'STATE' 'PID' 'RAM' 'EXTRA'
     for TARGET in launcher proxy bot; do
-        pid="$(read_pid "$TARGET" 2>/dev/null || true)"
+        pid="$(component_pid "$TARGET" 2>/dev/null || true)"
+        ram='-'; extra=''
         if is_running "$pid"; then
             state='running'
+            ram="$(ram_of_tree "$pid")"
+            # a proxy/bot found by discovery may just be the launcher's child
+            if [ "$TARGET" != launcher ] && [ -n "$launcher_pid" ] && is_descendant "$pid" "$launcher_pid"; then
+                extra='(via launcher)'
+            fi
         else
             state='stopped'; pid='-'
         fi
-        extra=''
         case "$TARGET" in
-            launcher) port_open "$UI_PORT" && extra='UI :8080 up' || extra='UI :8080 down' ;;
-            proxy)    extra="bind port: $(jq -r '.proxy.bindPort // 25568' "$CONFIG_FILE" 2>/dev/null || printf '?')" ;;
-            bot)      extra="log: $BOT_LOG" ;;
+            launcher) extra="UI :8080 $(port_open "$UI_PORT" && printf %s up || printf %s down)${extra:+ $extra}" ;;
+            proxy)    extra="bind port: $(jq -r '.proxy.bindPort // 25568' "$CONFIG_FILE" 2>/dev/null || printf '?')${extra:+ $extra}" ;;
+            bot)      [ -n "$extra" ] || extra="log: $BOT_LOG" ;;
         esac
-        printf '%-9s %-8s %-7s %s\n' "$TARGET" "$state" "$pid" "$extra"
+        printf '%-9s %-8s %-7s %-9s %s\n' "$TARGET" "$state" "$pid" "$ram" "$extra"
     done
 }
 
