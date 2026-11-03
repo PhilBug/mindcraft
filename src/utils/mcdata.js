@@ -181,6 +181,28 @@ export function initBot(username) {
                     }
                 }
             }
+            // The chunk-parsing web worker embeds its own (older) minecraft-data
+            // and cannot resolve new versions like 26.x, so it renders no blocks
+            // at all (only sky). Map them to the bundled 1.21.4 data - same
+            // fallback the node side uses. Chunk section format is unchanged,
+            // only brand-new block types may look wrong.
+            const workerPath = path.join(publicDir, 'worker.js');
+            if (fs.existsSync(workerPath)) {
+                const worker = fs.readFileSync(workerPath, 'utf8');
+                if (!worker.includes('WV_FALLBACK')) {
+                    const marker = '"version"===e.type)world=new World(e.version)';
+                    const fallback = `const WV_FALLBACK={"26.1":"1.21.4","26.2":"1.21.4","26.3":"1.21.4"};`;
+                    const patchedWorker = worker
+                        .replace('onmessage=({data:e})=>{', `onmessage=({data:e})=>{${fallback}`)
+                        .replace(marker, '"version"===e.type)world=new World(WV_FALLBACK[e.version]||e.version)');
+                    if (patchedWorker !== worker) {
+                        fs.writeFileSync(workerPath, patchedWorker);
+                        console.log('[mcdata] prismarine-viewer: patched worker for version', mc_version);
+                    } else {
+                        console.warn('[mcdata] prismarine-viewer: could not patch worker for version', mc_version);
+                    }
+                }
+            }
             console.log('[mcdata] prismarine-viewer: added runtime support for version', mc_version);
         }
     });
