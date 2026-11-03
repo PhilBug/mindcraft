@@ -161,9 +161,12 @@ async function main() {
         secrets: secretsForRedaction(),
         // The mindserver survives agent process crashes - we detect them from the
         // log, otherwise the launcher would keep running with a broken bot.
+        // Note: exit code 1 is Mindcraft's normal restart path (e.g. the UI
+        // "Restart" button) - its supervisor respawns the agent with memory.
+        // A broken bot is when the supervisor gives up respawning.
         agentFailurePatterns: [
             /Failed to start agent process/,
-            /Agent process exited with code [1-9]/,
+            /Agent process exited too quickly and will not be restarted/,
         ],
         registerAbort: (handler) => {
             abortHandler = handler;
